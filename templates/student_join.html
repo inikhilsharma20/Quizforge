@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Join Quiz — QuizForge{% endblock %}
+{% block content %}
+
+<div class="login-wrap">
+  <div class="brand">
+    <span class="brand-icon">⬡</span>
+    <span class="brand-name">QuizForge</span>
+  </div>
+
+  <div class="card" style="max-width:440px;width:100%;">
+    <h1 class="card-title">Join a Quiz</h1>
+    <p class="card-sub">Enter your details and the quiz code shared by your educator.</p>
+
+    <div class="field">
+      <label>Your Name</label>
+      <input id="s-name" type="text" placeholder="Full name" />
+    </div>
+    <div class="field">
+      <label>Enrollment Number</label>
+      <input id="s-enroll" type="text" placeholder="e.g. 2021CS001" />
+    </div>
+    <div class="field">
+      <label>Quiz Code</label>
+      <input id="s-code" type="text" placeholder="6-character code" maxlength="6"
+             style="text-transform:uppercase;letter-spacing:0.25em;font-size:1.2rem;" />
+    </div>
+
+    <div id="join-error" class="error-msg hidden"></div>
+    <button class="btn-primary" onclick="joinQuiz()">Start Quiz →</button>
+    <p style="text-align:center;margin-top:1rem;opacity:.6;font-size:.85rem;">
+      <a href="/login">← Back to login</a>
+    </p>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+async function joinQuiz() {
+  const name       = document.getElementById("s-name").value.trim();
+  const enrollment = document.getElementById("s-enroll").value.trim();
+  const quiz_code  = document.getElementById("s-code").value.trim().toUpperCase();
+  const errEl      = document.getElementById("join-error");
+  errEl.classList.add("hidden");
+
+  if (!name || !enrollment || !quiz_code) {
+    showError(errEl, "All fields are required."); return;
+  }
+
+  const res  = await post("/student/validate", { name, enrollment, quiz_code });
+  const data = await res.json();
+
+  if (data.success) {
+    window.location.href = data.redirect;
+  } else {
+    showError(errEl, data.message);
+  }
+}
+
+// Allow pressing Enter to submit
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter") joinQuiz();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — QuizForge{% endblock %}
+{% block content %}
+
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-icon">⬡</span>
+      <span class="brand-name">QuizForge</span>
+    </div>
+    <nav class="nav">
+      <a class="nav-link active" href="/educator/dashboard">⊞ Dashboard</a>
+      <a class="nav-link" href="/educator/create">＋ New Quiz</a>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="user-chip">🎓 {{ educator_name }}</span>
+      <a href="/logout" class="logout-link">Sign out</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <section class="page-header dashboard-header">
+      <div>
+        <span class="eyebrow">Educator dashboard</span>
+        <h1 class="page-heading">Your Quizzes</h1>
+        <p class="page-sub">Build quizzes, monitor student participation, and share join codes with your class.</p>
+      </div>
+      <div class="hero-actions">
+        <a href="/educator/create" class="btn-primary btn-large">＋ New Quiz</a>
+      </div>
+    </section>
+
+    <section class="dashboard-body">
+      {% if quizzes %}
+      <div class="quiz-grid">
+        {% for q in quizzes %}
+        <div class="quiz-card">
+          <div class="quiz-card-top">
+            <h3 class="quiz-card-title">{{ q.title }}</h3>
+            <span class="quiz-code-badge">{{ q.quiz_code }}</span>
+          </div>
+          <div class="quiz-card-meta">
+            <span>🏆 {{ q.total_marks }} marks</span>
+            <span>⏱ {{ q.duration_mins }} min</span>
+            <span>👥 {{ q.attempt_count }} attempt{{ 's' if q.attempt_count != 1 else '' }}</span>
+          </div>
+          <div class="quiz-card-footer">
+            <span class="quiz-date">{{ q.created_at[:10] }}</span>
+            <a href="/educator/quiz/{{ q.id }}" class="btn-ghost">View Results →</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state-card">
+        <div class="empty-icon">📭</div>
+        <h2>No quizzes yet</h2>
+        <p>Create your first quiz, then share the code with students to start tracking performance instantly.</p>
+        <a href="/educator/create" class="btn-primary btn-large">＋ New Quiz</a>
+      </div>
+      {% endif %}
+    </section>
+  </main>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ quiz.title }} — QuizForge{% endblock %}
+{% block content %}
+
+<div class="quiz-attempt-wrap">
+
+  <!-- Header -->
+  <div class="attempt-header">
+    <div class="attempt-brand">
+      <span class="brand-icon">⬡</span> QuizForge
+    </div>
+    <div class="attempt-meta">
+      <span>👤 {{ student_name }}</span>
+      <span>🆔 {{ student_enroll }}</span>
+      <span class="quiz-title-badge">{{ quiz.title }}</span>
+    </div>
+    <div class="timer-box" id="timer">⏱ --:--</div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-track">
+    <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+
+  <!-- Questions -->
+  <div class="questions-scroll" id="questions-area">
+    {% for q in questions %}
+    <div class="q-attempt-card" id="qcard-{{ q.id }}" data-qid="{{ q.id }}">
+      <div class="q-attempt-head">
+        <span class="q-num">Q{{ loop.index }}</span>
+        <span class="q-attempt-text">{{ q.question_text }}</span>
+        <span class="q-marks-badge">{{ q.marks }}m</span>
+      </div>
+      <div class="q-options">
+        {% for opt, label in [('A', q.option_a), ('B', q.option_b), ('C', q.option_c), ('D', q.option_d)] if label %}
+        <label class="opt-card" id="opt-{{ q.id }}-{{ opt }}">
+          <input type="radio" name="q{{ q.id }}" value="{{ opt }}"
+                 onchange="markAnswered({{ q.id }}, '{{ opt }}', {{ loop.index0 }}, {{ questions|length }})" />
+          <span class="opt-letter">{{ opt }}</span>
+          <span class="opt-text">{{ label }}</span>
+        </label>
+      {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Submit bar -->
+  <div class="submit-bar">
+    <div class="answer-tracker">
+      {% for q in questions %}
+      <span class="dot" id="dot-{{ q.id }}" title="Q{{ loop.index }}"></span>
+      {% endfor %}
+    </div>
+    <div>
+      <span id="answered-count">0</span>/{{ questions|length }} answered
+    </div>
+    <button class="btn-primary" onclick="confirmSubmit()">Submit Quiz →</button>
+  </div>
+
+</div>
+
+<!-- Confirm modal -->
+<div id="confirm-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h2>Submit Quiz?</h2>
+    <p id="confirm-msg">You have answered <span id="modal-answered">0</span> of {{ questions|length }} questions.</p>
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="closeModal()">Review Again</button>
+      <button class="btn-primary" onclick="submitQuiz()">Confirm Submit →</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const TOTAL_QUESTIONS = {{ questions|length }};
+const answers = {};  // { question_id: chosen_option }
+let answered = 0;
+
+/* ── Timer (quiz duration) ─────────────────────────────────────────── */
+let timeLeft = {{ quiz.duration_mins or 30 }} * 60;
+const timerEl = document.getElementById("timer");
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const m = String(Math.floor(timeLeft / 60)).padStart(2, "0");
+  const s = String(timeLeft % 60).padStart(2, "0");
+  timerEl.textContent = `⏱ ${m}:${s}`;
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitQuiz();   // auto-submit on timeout
+  }
+  if (timeLeft <= 300) timerEl.classList.add("timer-warn");
+}, 1000);
+
+/* ── Mark a question as answered ───────────────────────────────────── */
+function markAnswered(qid, opt, optIdx, total) {
+  const wasAnswered = answers[qid] !== undefined;
+  answers[qid] = opt;
+
+  // Highlight selected option card
+  document.querySelectorAll(`input[name="q${qid}"]`).forEach(inp => {
+    inp.closest(".opt-card").classList.remove("selected");
+  });
+  document.getElementById(`opt-${qid}-${opt}`).classList.add("selected");
+
+  // Update dot tracker
+  document.getElementById(`dot-${qid}`).classList.add("filled");
+
+  if (!wasAnswered) {
+    answered++;
+    document.getElementById("answered-count").textContent = answered;
+    const pct = (answered / TOTAL_QUESTIONS) * 100;
+    document.getElementById("progress-fill").style.width = pct + "%";
+  }
+}
+
+/* ── Confirm + submit ───────────────────────────────────────────────── */
+function confirmSubmit() {
+  document.getElementById("modal-answered").textContent = answered;
+  document.getElementById("confirm-modal").classList.remove("hidden");
+}
+
+function closeModal() {
+  document.getElementById("confirm-modal").classList.add("hidden");
+}
+
+async function submitQuiz() {
+  closeModal();
+  clearInterval(timerInterval);
+
+  const res  = await post("/student/submit", { answers });
+  const data = await res.json();
+
+  if (data.success) {
+    window.location.href = data.redirect;
+  } else {
+    alert(data.message || "Submission failed. Please try again.");
+  }
+}
+</script>
+{% endblock %}

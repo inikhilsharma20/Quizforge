@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}QuizForge — Sign In{% endblock %}
+{% block content %}
+
+<div class="login-wrap">
+
+  <!-- Brand -->
+  <div class="brand">
+    <span class="brand-icon">⬡</span>
+    <span class="brand-name">QuizForge</span>
+  </div>
+
+  <!-- Role selector -->
+  <div id="role-select" class="card">
+    <h1 class="card-title">Who are you?</h1>
+    <p class="card-sub">Choose your role to continue.</p>
+    <div class="role-btns">
+      <button class="role-btn" onclick="selectRole('educator')">
+        <span class="role-icon">🎓</span>
+        <span class="role-label">Educator</span>
+        <span class="role-desc">Create &amp; manage quizzes</span>
+      </button>
+      <button class="role-btn" onclick="selectRole('student')">
+        <span class="role-icon">📝</span>
+        <span class="role-label">Student</span>
+        <span class="role-desc">Attempt a quiz with a code</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Educator login form (hidden initially) -->
+  <div id="educator-form" class="card hidden">
+    <button class="back-btn" onclick="goBack()">← Back</button>
+    <h1 class="card-title">Educator Login</h1>
+    <p class="card-sub" id="educator-form-sub">Sign in or create an account.</p>
+
+    <div id="tab-bar" class="tab-bar">
+      <button class="tab active" onclick="switchTab('login')">Sign In</button>
+      <button class="tab" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- Sign-In -->
+    <div id="tab-login">
+      <div class="field">
+        <label>Username</label>
+        <input id="login-username" type="text" placeholder="your username" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <div id="login-error" class="error-msg hidden"></div>
+      <button class="btn-primary" onclick="doLogin()">Sign In →</button>
+    </div>
+
+    <!-- Register -->
+    <div id="tab-register" class="hidden">
+      <div class="field">
+        <label>Choose Username</label>
+        <input id="reg-username" type="text" placeholder="your username" />
+      </div>
+      <div class="field">
+        <label>Choose Password</label>
+        <input id="reg-password" type="password" placeholder="min 6 characters" />
+      </div>
+      <div id="reg-error" class="error-msg hidden"></div>
+      <div id="reg-success" class="success-msg hidden"></div>
+      <button class="btn-primary" onclick="doRegister()">Create Account →</button>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* ── Role selection ──────────────────────────────────────────────────── */
+function selectRole(role) {
+  document.getElementById("role-select").classList.add("hidden");
+  if (role === "student") {
+    // Students go straight to quiz join page
+    window.location.href = "/student/join";
+  } else {
+    document.getElementById("educator-form").classList.remove("hidden");
+  }
+}
+
+function goBack() {
+  document.getElementById("educator-form").classList.add("hidden");
+  document.getElementById("role-select").classList.remove("hidden");
+}
+
+/* ── Tab switching (login ↔ register) ───────────────────────────────── */
+function switchTab(tab) {
+  const tabs = document.querySelectorAll(".tab");
+  tabs.forEach(t => t.classList.remove("active"));
+  event.target.classList.add("active");
+
+  document.getElementById("tab-login").classList.add("hidden");
+  document.getElementById("tab-register").classList.add("hidden");
+  document.getElementById("tab-" + tab).classList.remove("hidden");
+}
+
+/* ── Educator login ─────────────────────────────────────────────────── */
+async function doLogin() {
+  const username = document.getElementById("login-username").value.trim();
+  const password = document.getElementById("login-password").value.trim();
+  const errEl    = document.getElementById("login-error");
+  errEl.classList.add("hidden");
+
+  if (!username || !password) {
+    showError(errEl, "Please enter username and password.");
+    return;
+  }
+
+  const res  = await post("/login", { role: "educator", username, password });
+  const data = await res.json();
+
+  if (data.success) {
+    window.location.href = data.redirect;
+  } else {
+    showError(errEl, data.message);
+  }
+}
+
+/* ── Educator register ──────────────────────────────────────────────── */
+async function doRegister() {
+  const username = document.getElementById("reg-username").value.trim();
+  const password = document.getElementById("reg-password").value.trim();
+  const errEl    = document.getElementById("reg-error");
+  const okEl     = document.getElementById("reg-success");
+  errEl.classList.add("hidden");
+  okEl.classList.add("hidden");
+
+  if (!username || !password) {
+    showError(errEl, "Both fields are required."); return;
+  }
+  if (password.length < 6) {
+    showError(errEl, "Password must be at least 6 characters."); return;
+  }
+
+  const res  = await post("/register", { username, password });
+  const data = await res.json();
+
+  if (data.success) {
+    okEl.textContent = data.message;
+    okEl.classList.remove("hidden");
+    switchTab("login");
+  } else {
+    showError(errEl, data.message);
+  }
+}
+</script>
+{% endblock %}

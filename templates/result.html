@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Your Result — QuizForge{% endblock %}
+{% block content %}
+
+<div class="result-wrap">
+
+  <div class="brand" style="justify-content:center;margin-bottom:2rem;">
+    <span class="brand-icon">⬡</span>
+    <span class="brand-name">QuizForge</span>
+  </div>
+
+  <!-- Score card -->
+  <div class="score-card">
+    <div class="score-ring-wrap">
+      <svg class="score-ring" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="50" class="ring-track" />
+        <circle cx="60" cy="60" r="50" class="ring-fill"
+          id="ring-fill"
+          stroke-dasharray="0 314"
+          transform="rotate(-90 60 60)" />
+      </svg>
+      <div class="score-center">
+        <span class="score-pct" id="score-pct">0%</span>
+        <span class="score-fraction">{{ result.score }}/{{ result.total }}</span>
+      </div>
+    </div>
+
+    <div class="score-info">
+      <h1 class="result-name">{{ student_name }}</h1>
+      <p class="result-enroll">{{ student_enroll }}</p>
+      <div class="grade-big grade-{{ 'A' if result.percentage >= 80 else 'B' if result.percentage >= 60 else 'C' if result.percentage >= 40 else 'F' }}">
+        Grade {{ 'A' if result.percentage >= 80 else 'B' if result.percentage >= 60 else 'C' if result.percentage >= 40 else 'F' }}
+      </div>
+      <p class="result-msg">
+        {% if result.percentage >= 80 %}🎉 Excellent work!
+        {% elif result.percentage >= 60 %}👍 Good job!
+        {% elif result.percentage >= 40 %}📚 Keep practising.
+        {% else %}💪 Don't give up — try again!
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <!-- Breakdown -->
+  <div class="breakdown-section">
+    <h2 class="section-title">Answer Breakdown</h2>
+    <div class="breakdown-list">
+      {% for item in result.breakdown %}
+      <div class="breakdown-item {{ 'correct' if item.awarded > 0 else 'wrong' }}">
+        <div class="bd-left">
+          <span class="bd-icon">{{ '✓' if item.awarded > 0 else '✗' }}</span>
+          <span class="bd-question">{{ item.question }}</span>
+        </div>
+        <div class="bd-right">
+          <span class="bd-chosen">You: <strong>{{ item.chosen or '—' }}</strong></span>
+          <span class="bd-correct">Correct: <strong>{{ item.correct }}</strong></span>
+          <span class="bd-marks">+{{ item.awarded }}/{{ item.marks }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:2rem;">
+    <a href="/student/join" class="btn-primary">Attempt Another Quiz</a>
+  </div>
+
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* ── Animate the score ring on load ─────────────────────────────────── */
+const pct        = {{ result.percentage }};
+const circumference = 2 * Math.PI * 50;  // ≈ 314
+
+window.addEventListener("load", () => {
+  // Percentage text
+  let current = 0;
+  const pctEl  = document.getElementById("score-pct");
+  const ring   = document.getElementById("ring-fill");
+
+  const step = () => {
+    current += 1;
+    pctEl.textContent = current + "%";
+    const filled = (current / 100) * circumference;
+    ring.setAttribute("stroke-dasharray", `${filled} ${circumference - filled}`);
+    if (current < pct) requestAnimationFrame(step);
+  };
+
+  // Color based on grade
+  if (pct >= 80)      ring.style.stroke = "var(--green)";
+  else if (pct >= 60) ring.style.stroke = "var(--blue)";
+  else if (pct >= 40) ring.style.stroke = "var(--yellow)";
+  else                ring.style.stroke = "var(--red)";
+
+  requestAnimationFrame(step);
+});
+</script>
+{% endblock %}

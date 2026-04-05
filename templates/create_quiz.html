@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Create Quiz — QuizForge{% endblock %}
+{% block content %}
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-icon">⬡</span><span class="brand-name">QuizForge</span></div>
+    <nav class="nav">
+      <a class="nav-link" href="/educator/dashboard">⊞ Dashboard</a>
+      <a class="nav-link active" href="/educator/create">＋ New Quiz</a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/logout" class="logout-link">Sign out</a>
+    </div>
+  </aside>
+
+  <main class="main-content create-page">
+    <section class="create-layout">
+      <div class="page-header">
+        <h1 class="page-heading">Create Quiz</h1>
+        <p class="page-sub">Build a quiz for your class, add questions, then publish it with an instant join code.</p>
+      </div>
+
+      <div class="create-panel">
+        <div id="step1" class="card creator-card">
+          <h2 class="step-label">Step 1 — Quiz Setup</h2>
+          <div class="field">
+            <label>Quiz Title</label>
+            <input id="quiz-title" type="text" placeholder="e.g. Physics Chapter 3" />
+          </div>
+          <div class="field">
+            <label>Quiz Duration (minutes)</label>
+            <input id="quiz-duration" type="number" min="1" max="180" placeholder="e.g. 30" />
+          </div>
+          <div class="field">
+            <label>Number of Questions</label>
+            <input id="num-questions" type="number" min="1" max="50" placeholder="e.g. 5" />
+          </div>
+          <div id="step1-error" class="error-msg hidden"></div>
+          <button class="btn-primary" onclick="generateForm()">Next: Add Questions →</button>
+        </div>
+
+        <div id="step2" class="hidden card creator-card">
+          <h2 class="step-label">Step 2 — Add Questions</h2>
+          <div id="questions-container"></div>
+          <div id="step2-error" class="error-msg hidden"></div>
+          <div class="creator-actions">
+            <button class="btn-ghost" onclick="backToStep1()">← Back</button>
+            <button class="btn-primary" onclick="publishQuiz()">🚀 Publish Quiz</button>
+          </div>
+        </div>
+
+        <div id="step3" class="card creator-card hidden success-panel">
+          <div class="success-icon">✅</div>
+          <h2>Quiz Published!</h2>
+          <p>Share this code with your students:</p>
+          <div class="big-code" id="generated-code">------</div>
+          <button class="btn-ghost" onclick="copyCode()">📋 Copy Code</button>
+          <a href="/educator/dashboard" class="btn-primary return-btn">
+            Go to Dashboard →
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* ── Step 1 → Step 2: Generate question forms ───────────────────────── */
+function generateForm() {
+  const title   = document.getElementById("quiz-title").value.trim();
+  const numRaw  = document.getElementById("num-questions").value;
+  const errEl   = document.getElementById("step1-error");
+  errEl.classList.add("hidden");
+
+  if (!title) { showError(errEl, "Please enter a quiz title."); return; }
+  const duration = parseInt(document.getElementById("quiz-duration").value, 10);
+  if (!duration || duration < 1 || duration > 180) { showError(errEl, "Enter a duration between 1 and 180 minutes."); return; }
+  const num = parseInt(numRaw);
+  if (!num || num < 1 || num > 50) { showError(errEl, "Enter a number between 1 and 50."); return; }
+
+  const container = document.getElementById("questions-container");
+  container.innerHTML = "";
+
+  for (let i = 1; i <= num; i++) {
+    container.insertAdjacentHTML("beforeend", questionCard(i));
+    updateQuestionOptions(i);
+  }
+
+  document.getElementById("step1").classList.add("hidden");
+  document.getElementById("step2").classList.remove("hidden");
+}
+
+/* ── Build HTML for one question card ──────────────────────────────── */
+function questionCard(n) {
+  return `
+  <div class="card creator-card q-card" id="q-card-${n}" data-option-count="4">
+    <div class="q-card-header">
+      <span class="q-num">Q${n}</span>
+      <div class="field field-grow">
+        <input id="q${n}-text" type="text" placeholder="Enter question text…" />
+      </div>
+      <div class="field marks-field">
+        <input id="q${n}-marks" type="number" min="1" value="1" title="Marks" />
+        <span class="marks-label">mark(s)</span>
+      </div>
+      <div class="field option-count-group">
+        <label>Options</label>
+        <select id="q${n}-optcount" onchange="updateQuestionOptions(${n})">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+        </select>
+      </div>
+    </div>
+    <div class="options-grid">
+      ${['A','B','C','D'].map(opt => `
+        <div class="option-row ${opt > 'B' ? 'hidden' : ''}" id="q${n}-optrow${opt}">
+          <span class="opt-label">${opt}</span>
+          <input id="q${n}-opt${opt}" type="text" placeholder="Option ${opt}" />
+        </div>
+      `).join('')}
+    </div>
+    <div class="correct-row" id="q${n}-correct-row">
+      <label>Correct Answer:</label>
+      ${['A','B','C','D'].map((opt,i) => `
+        <label class="radio-label ${opt > 'B' ? 'hidden' : ''}" id="q${n}-correct-${opt}">
+          <input type="radio" name="q${n}-correct" value="${opt}" ${i===0?'checked':''} />
+          ${opt}
+        </label>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
+function backToStep1() {
+  document.getElementById("step2").classList.add("hidden");
+  document.getElementById("step1").classList.remove("hidden");
+}
+
+function updateQuestionOptions(n) {
+  const select = document.getElementById(`q${n}-optcount`);
+  if (!select) return;
+  const count = parseInt(select.value, 10) || 4;
+  const letters = ['A','B','C','D'];
+
+  letters.forEach((letter, index) => {
+    const row = document.getElementById(`q${n}-optrow${letter}`);
+    const radio = document.getElementById(`q${n}-correct-${letter}`);
+    if (!row || !radio) return;
+
+    if (index < count) {
+      row.classList.remove('hidden');
+      radio.classList.remove('hidden');
+    } else {
+      row.classList.add('hidden');
+      radio.classList.add('hidden');
+      const radioInput = radio.querySelector('input');
+      if (radioInput && radioInput.checked) {
+        const firstRadio = document.querySelector(`#q${n}-correct-A input`);
+        if (firstRadio) firstRadio.checked = true;
+      }
+    }
+  });
+}
+
+
+/* ── Collect data and POST to /educator/create ──────────────────────── */
+async function publishQuiz() {
+  const title = document.getElementById("quiz-title").value.trim();
+  const errEl = document.getElementById("step2-error");
+  errEl.classList.add("hidden");
+
+  const cards = document.querySelectorAll(".q-card");
+  const questions = [];
+
+  for (let i = 0; i < cards.length; i++) {
+    const n = i + 1;
+    const txt = document.getElementById(`q${n}-text`).value.trim();
+    const optionCount = parseInt(document.getElementById(`q${n}-optcount`).value, 10) || 4;
+    const letters = ['A','B','C','D'];
+    const optionValues = letters.map(letter => document.getElementById(`q${n}-opt${letter}`).value.trim());
+    const mk = parseInt(document.getElementById(`q${n}-marks`).value) || 1;
+    const cor = document.querySelector(`input[name="q${n}-correct"]:checked`)?.value || 'A';
+
+    if (!txt) { showError(errEl, `Question ${n}: question text is required.`); return; }
+    for (let idx = 0; idx < optionCount; idx++) {
+      if (!optionValues[idx]) {
+        showError(errEl, `Question ${n}: option ${letters[idx]} is required.`); return;
+      }
+    }
+
+    const selectedCorrect = letters.slice(0, optionCount).includes(cor) ? cor : 'A';
+    questions.push({
+      text: txt,
+      option_a: optionValues[0],
+      option_b: optionValues[1],
+      option_c: optionValues[2] || "",
+      option_d: optionValues[3] || "",
+      correct: selectedCorrect,
+      marks: mk
+    });
+  }
+
+  const duration = parseInt(document.getElementById("quiz-duration").value, 10) || 30;
+  const res  = await post("/educator/create", { title, duration, questions });
+  const data = await res.json();
+
+  if (data.success) {
+    document.getElementById("step2").classList.add("hidden");
+    document.getElementById("generated-code").textContent = data.quiz_code;
+    document.getElementById("step3").classList.remove("hidden");
+  } else {
+    showError(errEl, data.message);
+  }
+}
+
+function copyCode() {
+  const code = document.getElementById("generated-code").textContent;
+  navigator.clipboard.writeText(code).then(() => alert("Code copied!"));
+}
+</script>
+{% endblock %}
